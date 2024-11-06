@@ -2,6 +2,20 @@ import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+// types/next-auth.d.ts or next-auth.d.ts
+import { User as NextAuthUser } from "next-auth"
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      role: string;
+    } & NextAuthUser;
+  }
+
+  interface User {
+    role: string;
+  }
+}
 
 const handler = NextAuth({
   providers: [
