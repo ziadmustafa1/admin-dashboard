@@ -1,103 +1,166 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from "@/components/ui/button"
-import { Package, Settings, ShoppingCart, Users } from 'lucide-react'
-import Link from 'next/link'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
+  const [stats, setStats] = useState({
+    totalServices: 0,
+    totalProducts: 0,
+    totalCategories: 0,
+    newOrders: 0,
+    totalUsers: 0,
+  })
+  const [isLoading, setIsLoading] = useState(true)
 
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">جاري التحميل...</div>
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats')
+        if (!response.ok) throw new Error('Failed to fetch stats')
+        const data = await response.json()
+        setStats(data)
+      } catch (error) {
+        console.error('Error fetching stats:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [])
+
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-pulse text-center">
+          <div className="h-8 w-32 bg-muted rounded mb-4 mx-auto" />
+          <div className="h-4 w-24 bg-muted rounded mx-auto" />
+        </div>
+      </div>
+    )
   }
-
-  if (status === 'unauthenticated') {
-    router.push('/login')
-    return null
-  }
-
   return (
-    <div className="p-6" dir="rtl">
-      <h1 className="text-3xl font-bold mb-6">لوحة التحكم</h1>
+    <div className="container mx-auto px-4 py-8">
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>مرحباً {session?.user?.name}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            مرحباً بك في لوحة التحكم الخاصة بمتجر الأزياء الموحد
+          </p>
+          <Button variant="link" className="mt-4">تحديث الملف الشخصي</Button>
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">إجمالي المنتجات</CardTitle>
-            <Package className="w-4 h-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>إجمالي الخدمات</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">128</div>
+            <p className="text-2xl font-bold">{stats.totalServices}</p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">الطلبات الجديدة</CardTitle>
-            <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>إجمالي المنتجات</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <p className="text-2xl font-bold">{stats.totalProducts}</p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">العملاء</CardTitle>
-            <Users className="w-4 h-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>إجمالي التصنيفات</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">320</div>
+            <p className="text-2xl font-bold">{stats.totalCategories}</p>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">الإعدادات</CardTitle>
-            <Settings className="w-4 h-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle>طلبات جديدة</CardTitle>
           </CardHeader>
           <CardContent>
-            <Link href="/dashboard/settings">
-              <Button variant="outline" className="w-full">
-                تعديل الإعدادات
-              </Button>
-            </Link>
+            <p className="text-2xl font-bold">{stats.newOrders}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>إجمالي المستخدمين</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{stats.totalUsers}</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>الإجراءات السريعة</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Link href="/dashboard/products">
-              <Button variant="outline" className="w-full">
-                عرض المنتجات
-              </Button>
-            </Link>
-            <Link href="/dashboard/products/add">
-              <Button variant="outline" className="w-full">
-                إضافة منتج جديد
-              </Button>
-            </Link>
-            <Link href="/dashboard/orders">
-              <Button variant="outline" className="w-full">
-                إدارة الطلبات
-              </Button>
-            </Link>
-            <Link href="/dashboard/settings">
-              <Button variant="outline" className="w-full">
-                تعديل الإعدادات
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <a href='/dashboard/services'>
+          <Card>
+            <CardHeader>
+              <CardTitle>الخدمات</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">إدارة الخدمات المتاحة في المتجر.</p>
+            </CardContent>
+          </Card>
+        </a>
+        <a href='/dashboard/products'>
+          <Card>
+            <CardHeader>
+              <CardTitle>المنتجات</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">إدارة المنتجات المتاحة في المتجر.</p>
+            </CardContent>
+          </Card>
+        </a>
+        <a href='/dashboard/categories'>
+          <Card>
+            <CardHeader>
+              <CardTitle>التصنيفات</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">إدارة التصنيفات المختلفة للمنتجات والخدمات.</p>
+            </CardContent>
+          </Card>
+        </a>
+        <a href='/dashboard/orders'>
+          <Card>
+            <CardHeader>
+              <CardTitle>الطلبات</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">إدارة طلبات العملاء.</p>
+            </CardContent>
+          </Card>
+        </a>
+        <a href='/dashboard/users'>
+          <Card>
+            <CardHeader>
+              <CardTitle>المستخدمون</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">إدارة المستخدمين المسجلين في المتجر.</p>
+            </CardContent>
+          </Card>
+        </a>
+        <a href='/dashboard/reports'>
+          <Card>
+            <CardHeader>
+              <CardTitle>التقارير</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">عرض التقارير والإحصائيات حول أداء المتجر.</p>
+            </CardContent>
+          </Card>
+        </a>
       </div>
     </div>
   )

@@ -1,11 +1,10 @@
-import { writeFile } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
-import path from 'path'
+import { uploadImage } from '@/lib/upload-handler'
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const file = formData.get('file') as File
+    const file = formData.get('file') as File | null
 
     if (!file) {
       return NextResponse.json(
@@ -14,21 +13,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const filename = Date.now() + '-' + file.name.replaceAll(' ', '_')
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json(
+        { error: 'يجب أن يكون الملف صورة' },
+        { status: 400 }
+      )
+    }
 
-    // Save to public/uploads
-    const uploadDir = path.join(process.cwd(), 'public/uploads')
-    await writeFile(path.join(uploadDir, filename), buffer)
+    // Validate file size (e.g., 5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'حجم الملف يجب أن يكون أقل من 5 ميجابايت' },
+        { status: 400 }
+      )
+    }
 
-    return NextResponse.json({
-      url: `/uploads/${filename}`,
-      success: true
-    })
+    const imageUrl = await uploadImage(file)
+
+    return NextResponse.json({ url: imageUrl })
   } catch (error) {
-    console.error('Error uploading file:', error)
+    console.error('Upload error:', error)
     return NextResponse.json(
-      { error: 'حدث خطأ أثناء رفع الملف' },
+      { error: 'حدث خطأ أثناء رفع الصورة' },
       { status: 500 }
     )
   }

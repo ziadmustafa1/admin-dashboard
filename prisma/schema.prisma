@@ -3,13 +3,8 @@ generator client {
 }
 
 datasource db {
-
   provider = "postgresql"
-
-  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
-
-  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
-
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -29,7 +24,46 @@ model Product {
   price       Float
   quantity    Int
   category    String
-  imageUrl    String?
+  images      String[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  category    String
+  images      String[]
+  available   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+model Category {
+  id          String   @id @default(uuid())
+  name        String
+  type        CategoryType
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum CategoryType {
+  PRODUCT
+  SERVICE
+}
+model Order {
+  id            String   @id @default(cuid())
+  customerName  String
+  totalAmount   Float
+  status        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+model Report {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

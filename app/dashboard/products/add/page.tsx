@@ -1,81 +1,65 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { MultiImageUpload } from "@/components/multi-image-upload"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ExclamationTriangleIcon, ImageIcon } from "@radix-ui/react-icons"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function AddProductPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
+  const [error, setError] = useState<string | null>(null)
+  const [images, setImages] = useState<string[]>([])
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     quantity: '',
     category: '',
-    imageUrl: ''
   })
+  const [categories, setCategories] = useState([]) // لتخزين الفئات المحملة من API
 
-  const handleImageUpload = async (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) throw new Error('فشل رفع الصورة')
-
-      const data = await response.json()
-      return data.url
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      throw new Error('حدث خطأ أثناء رفع الصورة')
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch('/api/categories')
+        if (!response.ok) throw new Error('فشل في جلب الفئات')
+        const data = await response.json()
+        setCategories(data) // تخزين الفئات في الحالة
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        setError('فشل في جلب الفئات')
+      }
     }
+
+    fetchCategories()
+  }, [])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-
-    try {
-      setIsLoading(true)
-      const imageUrl = await handleImageUpload(file)
-      setFormData(prev => ({ ...prev, imageUrl }))
-      setError('')
-    } catch (error) {
-      setError('حدث خطأ أثناء رفع الصورة')
-    } finally {
-      setIsLoading(false)
-    }
+  const handleCategoryChange = (value: string) => {
+    setFormData(prev => ({ ...prev, category: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
       const response = await fetch('/api/products', {
@@ -85,49 +69,40 @@ export default function AddProductPage() {
         },
         body: JSON.stringify({
           ...formData,
-          price: parseFloat(formData.price),
-          quantity: parseInt(formData.quantity),
+          price: Number(formData.price),
+          quantity: Number(formData.quantity),
+          images,
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to add product')
+        const data = await response.json()
+        throw new Error(data.error || 'فشل في إنشاء المنتج')
       }
 
       router.push('/dashboard/products')
       router.refresh()
     } catch (error) {
-      setError('حدث خطأ أثناء إضافة المنتج')
+      console.error('Error adding product:', error)
+      setError(error instanceof Error ? error.message : 'حدث خطأ أثناء إضافة المنتج')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-  }
-
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">جاري التحميل...</div>
-  }
-
-  if (status === 'unauthenticated') {
-    router.push('/login')
-    return null
-  }
-
   return (
-    <div className="p-6" dir="rtl">
-      <Card>
+    <div className="container mx-auto px-4 py-8">
+      <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>إضافة منتج جديد</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={onSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">اسم المنتج</Label>
               <Input
@@ -138,7 +113,6 @@ export default function AddProductPage() {
                 required
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="description">وصف المنتج</Label>
               <Textarea
@@ -149,7 +123,6 @@ export default function AddProductPage() {
                 required
               />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">السعر</Label>
@@ -163,7 +136,6 @@ export default function AddProductPage() {
                   required
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="quantity">الكمية</Label>
                 <Input
@@ -176,73 +148,45 @@ export default function AddProductPage() {
                 />
               </div>
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="category">الفئة</Label>
-              <Input
-                id="category"
-                name="category"
+              <Select
                 value={formData.category}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>صورة المنتج</Label>
-              <div className="flex items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                >
-                  <ImageIcon className="ml-2 h-4 w-4" />
-                  اختر صورة
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
-
-              {imagePreview && (
-                <div className="mt-4 relative aspect-video w-full max-w-sm overflow-hidden rounded-lg border">
-                  <Image
-                    src={imagePreview}
-                    alt="معاينة الصورة"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              )}
-            </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex justify-end space-x-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-                disabled={isLoading}
+                onValueChange={handleCategoryChange}
               >
-                إلغاء
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'جاري الإضافة...' : 'إضافة المنتج'}
-              </Button>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر الفئة" />
+                </SelectTrigger>
+                <SelectContent>
+  {categories.length > 0 ? (
+    categories.map((category) => (
+      <SelectItem key={category.id} value={category.name}>
+        {category.name}
+      </SelectItem>
+    ))
+  ) : (
+    <SelectItem disabled>لا توجد فئات</SelectItem>
+  )}
+</SelectContent>
+
+              </Select>
             </div>
-          </form>
-        </CardContent>
+            <MultiImageUpload
+              value={images}
+              onChange={setImages}
+              label="صور المنتج"
+            />
+          </CardContent>
+          <CardFooter>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? 'جاري الإضافة...' : 'إضافة المنتج'}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   )

@@ -10,7 +10,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const result = await signIn('credentials', {
-      redirect: false,
+      redirect: true,
       email,
       password,
     })

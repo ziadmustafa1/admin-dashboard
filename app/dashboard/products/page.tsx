@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2 } from 'lucide-react'
-import Link from 'next/link'
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Pencil, Trash } from 'lucide-react'
 
 interface Product {
   id: string
@@ -16,22 +15,17 @@ interface Product {
   price: number
   quantity: number
   category: string
-  imageUrl: string
+  images: string[]
 }
 
 export default function ProductsPage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated') {
-      fetchProducts()
-    }
-  }, [status])
+    fetchProducts()
+  }, [])
 
   const fetchProducts = async () => {
     try {
@@ -47,80 +41,59 @@ export default function ProductsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return
-
-    try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-      })
-      
-      if (response.ok) {
-        setProducts(products.filter(product => product.id !== id))
-      } else {
-        throw new Error('Failed to delete product')
+    if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
+      try {
+        const response = await fetch(`/api/products/${id}`, {
+          method: 'DELETE',
+        })
+        if (!response.ok) throw new Error('Failed to delete product')
+        fetchProducts()
+      } catch (error) {
+        console.error('Error deleting product:', error)
       }
-    } catch (error) {
-      console.error('Error deleting product:', error)
-      alert('حدث خطأ أثناء حذف المنتج')
     }
   }
 
-  if (status === 'loading' || isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">جاري التحميل...</div>
+  if (isLoading) {
+    return <div className="text-center mt-8">جاري التحميل...</div>
   }
 
   return (
-    <div className="p-6" dir="rtl">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>إدارة المنتجات</CardTitle>
-          <Link href="/dashboard/products/add">
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              إضافة منتج جديد
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>اسم المنتج</TableHead>
-                <TableHead>السعر</TableHead>
-                <TableHead>الكمية</TableHead>
-                <TableHead>الفئة</TableHead>
-                <TableHead>الإجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.price} ريال</TableCell>
-                  <TableCell>{product.quantity}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Link href={`/dashboard/products/edit/${product.id}`}>
-                        <Button variant="outline" size="icon">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      </Link>
-                      <Button 
-                        variant="destructive" 
-                        size="icon"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">المنتجات</h1>
+        <Link href="/dashboard/products/add">
+          <Button>إضافة منتج جديد</Button>
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {products.map((product) => (
+          <Card key={product.id}>
+            <CardContent className="p-4">
+              <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 xl:aspect-w-7 xl:aspect-h-8">
+                <img
+                  src={product.images[0] || '/placeholder.png'}
+                  alt={product.name}
+                  fill
+                  className="object-cover object-center"
+                />
+              </div>
+              <h3 className="mt-4 text-sm text-gray-700">{product.name}</h3>
+              <p className="mt-1 text-lg font-medium text-gray-900">{product.price} ريال</p>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/products/edit/${product.id}`)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                تعديل
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDelete(product.id)}>
+                <Trash className="h-4 w-4 mr-2" />
+                حذف
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }
