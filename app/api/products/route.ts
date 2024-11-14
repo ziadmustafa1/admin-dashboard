@@ -1,66 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { PrismaClient } from '@prisma/client'
+import { authOptions } from '@/lib/auth'
 
-export async function POST(request: NextRequest) {
+const prisma = new PrismaClient()
+
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json(
-        { error: 'غير مصرح لك بالوصول' },
-        { status: 401 }
-      )
-    }
-
-    const data = await request.json()
-
-    // Validate required fields
-    if (!data.name || !data.description || !data.price || !data.quantity || !data.category) {
-      return NextResponse.json(
-        { error: 'جميع الحقول مطلوبة' },
-        { status: 400 }
-      )
-    }
-
-    // Create product with exact schema match
-    const product = await prisma.product.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        price: Number(data.price),
-        quantity: Number(data.quantity),
-        category: data.category,
-        images: data.images || [],
-      },
-    })
-
-    return NextResponse.json(product)
-  } catch (error: any) {
-    console.error('Error creating product:', error)
-    return NextResponse.json(
-      { error: error.message || 'حدث خطأ أثناء إنشاء المنتج' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const query = searchParams.get('query')
-
-    const where = query ? {
-      OR: [
-        { name: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
-        { category: { contains: query, mode: 'insensitive' } },
-      ],
-    } : {}
+    const { searchParams } = new URL(req.url)
+    const category = searchParams.get('category')
 
     const products = await prisma.product.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
+      where: category ? {
+        category: {
+          name: category
+        }
+      } : undefined,
+      include: {
+        category: true
+      }
     })
 
     return NextResponse.json(products)
@@ -70,5 +28,46 @@ export async function GET(request: NextRequest) {
       { error: 'حدث خطأ أثناء جلب المنتجات' },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'يجب تسجيل الدخول أولاً' },
+        { status: 401 }
+      )
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+
+    if (user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'غير مصرح به' },
+        { status: 403 }
+      )
+    }
+
+    const body = await req.json()
+    const product = await prisma.product.create({
+      data: body
+    })
+
+    return NextResponse.json(product)
+  } catch (error) {
+    console.error('Error creating product:', error)
+    return NextResponse.json(
+      { error: 'حدث خطأ أثناء إنشاء المنتج' },
+      { status: 500 }
+    )
+  } finally {
+    await prisma.$disconnect()
   }
 }
