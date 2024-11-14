@@ -71,12 +71,13 @@ export default function ProductsPage() {
           <Card key={product.id}>
             <CardContent className="p-4">
               <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200 xl:aspect-w-7 xl:aspect-h-8">
-                <img
-                  src={product.images[0] || '/placeholder.png'}
-                  alt={product.name}
-                  fill
-                  className="object-cover object-center"
-                />
+              <Image
+  src={product.image || '/placeholder.png'}
+  alt={product.name}
+  width={50}
+  height={50}
+  className="object-cover rounded-md"
+/>
               </div>
               <h3 className="mt-4 text-sm text-gray-700">{product.name}</h3>
               <p className="mt-1 text-lg font-medium text-gray-900">{product.price} ريال</p>

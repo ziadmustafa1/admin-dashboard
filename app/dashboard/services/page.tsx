@@ -71,11 +71,12 @@ export default function ServicesPage() {
           <Card key={service.id}>
             <CardContent className="p-4">
               <div className="">
-              <img
-                  src={service.images[0] || '/placeholder.png'}
+                <Image
+                  src={service.image || '/placeholder.png'}
                   alt={service.name}
-                  fill
-                  className="object-cover object-center"
+                  width={50}
+                  height={50}
+                  className="object-cover rounded-md"
                 />
               </div>
               <h3 className="mt-4 text-sm text-gray-700">{service.name}</h3>
