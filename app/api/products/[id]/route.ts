@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { PrismaClient } from '@prisma/client'
+import { authOptions } from '@/lib/auth'
+
+const prisma = new PrismaClient()
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id }
     })
 
     if (!product) {
@@ -23,37 +25,43 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching product:', error)
     return NextResponse.json(
-      { error: 'حدث خطأ أثناء جلب بيانات المنتج' },
+      { error: 'حدث خطأ أثناء جلب المنتج' },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
+
+    if (!session?.user?.email) {
       return NextResponse.json(
-        { error: 'غير مصرح لك بالوصول' },
+        { error: 'يجب تسجيل الدخول أولاً' },
         { status: 401 }
       )
     }
 
-    const data = await request.json()
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
 
+    if (user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'غير مصرح به' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
     const product = await prisma.product.update({
-      where: { id: params.id },
-      data: {
-        name: data.name,
-        description: data.description,
-        price: parseFloat(data.price),
-        quantity: parseInt(data.quantity),
-        category: data.category,
-        images: data.images,
-      },
+      where: { id: context.params.id },
+      data: body
     })
 
     return NextResponse.json(product)
@@ -63,24 +71,38 @@ export async function PUT(
       { error: 'حدث خطأ أثناء تحديث المنتج' },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session) {
+
+    if (!session?.user?.email) {
       return NextResponse.json(
-        { error: 'غير مصرح لك بالوصول' },
+        { error: 'يجب تسجيل الدخول أولاً' },
         { status: 401 }
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+
+    if (user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'غير مصرح به' },
+        { status: 403 }
+      )
+    }
+
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id: context.params.id }
     })
 
     return NextResponse.json({ message: 'تم حذف المنتج بنجاح' })
@@ -90,5 +112,7 @@ export async function DELETE(
       { error: 'حدث خطأ أثناء حذف المنتج' },
       { status: 500 }
     )
+  } finally {
+    await prisma.$disconnect()
   }
 }
